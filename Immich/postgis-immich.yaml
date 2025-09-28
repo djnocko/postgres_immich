@@ -1,0 +1,108 @@
+---
+# Secret for PostgreSQL credentials
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgis-credentials
+  namespace: immich
+type: Opaque
+data:
+  postgres-user: aW1taWNo # Base64-encoded "immich"
+  postgres-password: aW1taWNocGFzcw== # Base64-encoded "immichpass"
+  postgres-db: aW1taWNo # Base64-encoded "immich"
+---
+# Headless Service for PostgreSQL
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgis
+  namespace: immich
+spec:
+  clusterIP: None # Headless service
+  selector:
+    app: postgis
+  ports:
+  - port: 5432
+    targetPort: 5432
+    protocol: TCP
+    name: postgres
+---
+# StatefulSet for PostgreSQL with PostGIS and pgvector
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgis
+  namespace: immich
+spec:
+  serviceName: postgis
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgis
+  template:
+    metadata:
+      labels:
+        app: postgis
+    spec:
+      containers:
+      - name: postgis
+        image: ghcr.io/djnocko/custom-postgres-immich:16-postgis-pgvector
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5432
+          name: postgres
+        env:
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: postgis-credentials
+              key: postgres-user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgis-credentials
+              key: postgres-password
+        - name: POSTGRES_DB
+          valueFrom:
+            secretKeyRef:
+              name: postgis-credentials
+              key: postgres-db
+        volumeMounts:
+        - name: postgis-data
+          mountPath: /var/lib/postgresql/data
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - immich
+            - -d
+            - immich
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - immich
+            - -d
+            - immich
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1"
+  volumeClaimTemplates:
+  - metadata:
+      name: postgis-data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: local-path # SSD storage
+      resources:
+        requests:
+          storage: 10Gi

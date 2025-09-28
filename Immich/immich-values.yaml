@@ -1,0 +1,79 @@
+# -------------------------------------------------------------------
+# General settings
+# -------------------------------------------------------------------
+global:
+  storageClass: "local-path" # Or the storage class you use in k3s
+
+# -------------------------------------------------------------------
+# Immich app settings
+# -------------------------------------------------------------------
+immich:
+  image:
+    tag: "release"
+  persistence:
+    library:
+      enabled: true
+      existingClaim: immich-library-pvc # <--- use existing PVC
+    profile:
+      enabled: true
+      size: 1Gi
+
+# -------------------------------------------------------------------
+# Immich server environment variables
+# Override the default DB_HOSTNAME template to point to PostGIS
+# -------------------------------------------------------------------
+server:
+  env:
+    TZ: "Europe/Ljubljana"
+    DB_HOSTNAME: postgis.immich.svc.cluster.local # <- fixed hostname for PostGIS
+    DB_PORT: 5432
+    DB_USERNAME: immich
+    DB_PASSWORD: immichpass
+    DB_DATABASE_NAME: immich
+    DB_VECTOR_EXTENSION: pgvector # Match the enabled extension
+    SERVER_INIT_DELAY: 20
+  startupProbe:
+    enabled: false
+
+# -------------------------------------------------------------------
+# Database (PostgreSQL + PostGIS)
+# Bundled chart is deprecated; we are using external PostGIS
+# -------------------------------------------------------------------
+postgresql:
+  enabled: false
+# inChart PostgreSQL is deprecated
+
+# -------------------------------------------------------------------
+# Redis
+# -------------------------------------------------------------------
+redis:
+  enabled: true
+
+# -------------------------------------------------------------------
+# Ingress
+# -------------------------------------------------------------------
+ingress:
+  main:
+    enabled: true
+    ingressClassName: "traefik"
+    annotations:
+      kubernetes.io/ingress.class: "traefik"
+      traefik.ingress.kubernetes.io/router.entrypoints: "web"
+    hosts:
+    - host: photos.YOURDOMAIN.com
+      paths:
+      - path: /
+        pathType: Prefix
+        service:
+          name: immich-server
+          port: 2283
+    # -------------------------------------------------------------------
+    # Resources
+    # -------------------------------------------------------------------
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 250m
+    memory: 512Mi

@@ -15,6 +15,8 @@ This guide details how to deploy Immich v1.119.0 on a k3s cluster with a custom 
 ## Step 1: Create the Custom PostgreSQL Image
 The custom image includes PostgreSQL 16, PostGIS (`postgresql-16-postgis-3`), and `pgvector` (v0.7.4), with `postgis` and `vector` extensions enabled during initialization.
 
+You can use test image available in immich-values.yaml
+
 1. **Create a Directory**:
    ```bash
    mkdir postgres_immich
